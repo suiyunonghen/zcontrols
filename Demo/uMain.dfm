@@ -53,6 +53,12 @@ object Main: TMain
     HeaderPropText = 'Property'
     HeaderValueText = 'Value'
     OnBeforeAddItem = zObjectInspector1BeforeAddItem
+    OnExpandItem = zObjectInspector1ExpandItem
+    OnSelectItem = zObjectInspector1SelectItem
+    OnGetPropNameEvent = zObjectInspector1GetPropNameEvent
+    OnCheckIfListProp = zObjectInspector1CheckIfListProp
+    OnCheckIfDialogProp = zObjectInspector1CheckIfDialogProp
+    OnDialogPropExecute = zObjectInspector1DialogPropExecute
   end
   object Panel1: TPanel
     Left = 0

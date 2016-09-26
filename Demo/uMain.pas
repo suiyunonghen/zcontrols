@@ -10,6 +10,13 @@ uses
   Vcl.Menus;
 
 type
+  TSpeedButton = class(Vcl.Buttons.TSpeedButton)
+  published
+    [TPropAttribute('按钮名称','')]       //use CustomPropertryName and Add PropDescription
+    property Name;
+    [TPropAttribute('对齐方式','指定按钮的对齐方式')]
+    property Align;
+  end;
   TMain = class(TForm)
     zObjectInspector1: TzObjectInspector;
     Panel1: TPanel;
@@ -41,6 +48,18 @@ type
       PItem: PPropItem): Boolean;
     procedure StylesComboChange(Sender: TObject);
     procedure BtnMultiComponentsClick(Sender: TObject);
+    function zObjectInspector1SelectItem(Sender: TControl;
+      PItem: PPropItem): Boolean;
+    function zObjectInspector1ExpandItem(Sender: TControl;
+      PItem: PPropItem): Boolean;
+    procedure zObjectInspector1GetPropNameEvent(Sender: TControl;
+      Item: PPropItem; var PropName: string);
+    procedure zObjectInspector1CheckIfDialogProp(Sender: TControl;
+      Item: PPropItem; Instance: TObject; var Handled, Result: Boolean);
+    procedure zObjectInspector1CheckIfListProp(Sender: TControl;
+      Item: PPropItem; Instance: TObject; var Handled, Result: Boolean);
+    procedure zObjectInspector1DialogPropExecute(Sender: TControl;
+      Item: PPropItem; Instance: TObject);
   private
     FIncludeEvent: Boolean;
     procedure GetObjsList;
@@ -77,6 +96,8 @@ begin
   FIncludeEvent := TCheckBox(Sender).Checked;
   zObjectInspector1.UpdateProperties(True);
 end;
+
+
 
 procedure TMain.ObjsComboChange(Sender: TObject);
 var
@@ -137,8 +158,55 @@ function TMain.zObjectInspector1BeforeAddItem(Sender: TControl;
   PItem: PPropItem): Boolean;
 begin
   Result := True;
-  if not FIncludeEvent then
-    Result := PItem.Prop.PropertyType.TypeKind <> tkMethod;
+  {if not FIncludeEvent then
+    Result := PItem.Prop.PropertyType.TypeKind <> tkMethod;}
+end;
+
+procedure TMain.zObjectInspector1CheckIfDialogProp(Sender: TControl;
+  Item: PPropItem; Instance: TObject; var Handled, Result: Boolean);
+begin
+  if Item.Prop.PropertyType.TypeKind = tkMethod then
+  begin
+    Handled := True;
+    Result := True;
+  end;
+end;
+
+procedure TMain.zObjectInspector1CheckIfListProp(Sender: TControl;
+  Item: PPropItem; Instance: TObject; var Handled, Result: Boolean);
+begin
+  if Item.Prop.PropertyType.TypeKind = tkMethod then
+  begin
+    Handled := True;
+    Result := False;
+  end;
+end;
+
+procedure TMain.zObjectInspector1DialogPropExecute(Sender: TControl;
+  Item: PPropItem; Instance: TObject);
+begin
+  if Item.Prop.PropertyType.TypeKind = tkMethod then
+     ShowMessage('事件属性')
+  else zObjectInspector1.ExecuteDefaultDialog(Item);
+end;
+
+function TMain.zObjectInspector1ExpandItem(Sender: TControl;
+  PItem: PPropItem): Boolean;
+begin
+ Result := True;
+end;
+
+procedure TMain.zObjectInspector1GetPropNameEvent(Sender: TControl;
+  Item: PPropItem; var PropName: string);
+begin
+  if PropName = 'Name' then
+    PropName := '名称';
+end;
+
+function TMain.zObjectInspector1SelectItem(Sender: TControl;
+  PItem: PPropItem): Boolean;
+begin
+ Result := true;
 end;
 
 end.

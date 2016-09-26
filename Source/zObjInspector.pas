@@ -75,6 +75,16 @@ const
   dcFinished = 3;
 
 type
+  TPropAttribute = class(TCustomAttribute)
+  private
+    FName: string;
+    FDescript: string;
+  public
+    constructor Create(Propname: string;Desp: string='');
+    property Name: string read FName;
+    property Description: string read FDescript;
+  end;
+
   TzObjInspectorBase = class;
   TzObjInspectorList = class;
   TzObjInspectorSizing = class;
@@ -109,6 +119,8 @@ type
     FVisible: Boolean;
     FQName: String;
     FItems: TPropList;
+    FCustomPropName: string;
+    FDescription: string;
     function GetCount: Integer;
     function GetItem(const Index: Integer): PPropItem;
     function GetHasChild: Boolean;
@@ -140,6 +152,10 @@ type
     property Name: String read GetName;
     property ValueName: String read GetValueName;
     property Visible: Boolean read GetVisible;
+    //++Add by suiyunonghen
+    property CustomPropName: string read FCustomPropName;
+    property Description: string read FDescription;
+    //++Add by suiyunonghen
   end;
 
   TPropList = class(TzRecordList<TPropItem, PPropItem>)
@@ -152,7 +168,10 @@ type
   TSplitterPosChangedEvent = procedure(Sender: TControl; var Pos: Integer) of object;
   THeaderMouseDownEvent = procedure(Sender: TControl; Item: THeaderItem; X, Y: Integer) of object;
   TItemSetValue = function(Sender: TControl; PItem: PPropItem; var NewValue: TValue): Boolean of object;
-
+  TOnGetPropNameEvent = procedure(Sender: TControl;Item: PPropItem;var PropName: string) of object;
+  TOnCheckIfProp = procedure(Sender: TControl;Item: PPropItem;Instance: TObject;var Handled,Result: Boolean)of object;
+  TOnGetListItems= procedure(Sender: TControl;Item: PPropItem;Instance: TObject;Items: TStrings)of object;
+  TOnDialogPropExecute = procedure(Sender: TControl;Item: PPropItem;Instance: TObject) of object;
   TzRttiType = class(TRttiType)
     function GetUsedProperties: TArray<TRttiProperty>;
   end;
@@ -286,6 +305,7 @@ type
     procedure ListBoxMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure ButtonClick(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure PropInfoChanged;
+    procedure DoBtnDialogClick(Sender: TObject);
   public
     constructor Create(AOwner: TComponent; Inspector: TzCustomObjInspector); overload;
     { Do not publish any property ! }
@@ -524,6 +544,11 @@ type
     FAllowSearch: Boolean;
     FCategoryColor: TColor;
     FCategoryTextColor: TColor;
+    FOnGetPropNameEvent: TOnGetPropNameEvent;
+    FOnCheckIfListProp: TOnCheckIfProp;
+    FOnCheckIfDialogProp: TOnCheckIfProp;
+    FOnGetListItems: TOnGetListItems;
+    FOnDialogPropExecute: TOnDialogPropExecute;
     procedure CMSTYLECHANGED(var Message: TMessage); message CM_STYLECHANGED;
     procedure WMKILLFOCUS(var Msg: TWMKILLFOCUS); message WM_KILLFOCUS;
     procedure WMSETFOCUS(var Msg: TWMSetFocus); message WM_SETFOCUS;
@@ -575,6 +600,10 @@ type
     procedure PaintItem(Index: Integer); override;
     procedure PaintCategory(Index: Integer); virtual;
     procedure PaintItemValue(PItem: PPropItem; Index: Integer); virtual;
+
+    //++Add by suiyunonghen
+    function GetCustomPropName(PropItem: PPropItem): string;
+    //++Add by suiyunonghen
   public
     function SetPropValue(PropItem: PPropItem; var Value: TValue): Boolean;
     /// <summary> Update the Inspector .
@@ -619,6 +648,15 @@ type
     property OnExpandItem: TPropItemEvent read FOnExpandItem write FOnExpandItem;
     property OnSelectItem: TPropItemEvent read FOnSelectItem write FOnSelectItem;
     property AllowSearch: Boolean read FAllowSearch write SetAllowSearch;
+
+    //++Add by suiyunonghen
+    procedure DefaultGetPropListItems(PropItem: PPropItem;Items: TStrings);
+    procedure ExecuteDefaultDialog(Item: PPropItem);
+    property OnGetPropNameEvent: TOnGetPropNameEvent read FOnGetPropNameEvent write FOnGetPropNameEvent;
+    property OnCheckIfListProp: TOnCheckIfProp read FOnCheckIfListProp write FOnCheckIfListProp;
+    property OnCheckIfDialogProp: TOnCheckIfProp read FOnCheckIfDialogProp write FOnCheckIfDialogProp;
+    property OnGetListItems: TOnGetListItems read FOnGetListItems write FOnGetListItems;
+    property OnDialogPropExecute: TOnDialogPropExecute read FOnDialogPropExecute write FOnDialogPropExecute;
   end;
 
   TzObjectInspector = class(TzCustomObjInspector)
@@ -692,6 +730,12 @@ type
     property OnCollapseItem;
     property OnExpandItem;
     property OnSelectItem;
+
+    property OnGetPropNameEvent;
+    property OnCheckIfListProp;
+    property OnCheckIfDialogProp;
+    property OnGetListItems;
+    property OnDialogPropExecute;
   end;
 
 var
@@ -1509,7 +1553,9 @@ var
         PSet.FQName := LQName + '.' + IntToStr(i);
       end;
     end;
-
+  var
+    propAttr: TArray<TCustomAttribute>;
+    idx: Integer;
   begin
     if not Assigned(AInstance) then
       Exit;
@@ -1570,6 +1616,19 @@ var
         PItem.Parent := AParent;
         PItem.Prop := LProp;
         PItem.FQName := LQName;
+        //++Add by suiyunonghen ,CustomPropDefine
+        propAttr := LProp.GetAttributes;
+        for idx := Low(propAttr) to High(propAttr) do
+        begin
+          if propAttr[idx].InheritsFrom(TPropAttribute) then
+          begin
+            PItem.FCustomPropName := TPropAttribute(propAttr[idx]).FName;
+            PItem.FDescription := TPropAttribute(propAttr[idx]).FDescript;
+            Break;
+          end;
+        end;
+        //++Add by suiyunonghen
+
         if FSortByCategory then
           PItem.FVisible := False
         else
@@ -2339,6 +2398,12 @@ begin
     RegisterHotKey(Handle, 0, 0, VK_TAB);
 end;
 
+procedure TzCustomObjInspector.DefaultGetPropListItems(PropItem: PPropItem;
+  Items: TStrings);
+begin
+  DefaultValueManager.GetListItems(PropItem, Items);
+end;
+
 destructor TzCustomObjInspector.Destroy;
 begin
   inherited;
@@ -2557,6 +2622,18 @@ begin
   Result := DoCollapseItem(PItem);
   if Result then
     UpdateProperties(True);
+end;
+
+function TzCustomObjInspector.GetCustomPropName(PropItem: PPropItem): string;
+begin
+  if PropItem^.FCustomPropName <> '' then
+    Result := PropItem^.FCustomPropName
+  else
+  begin
+    Result := PropItem^.Name;
+    if Assigned(FOnGetPropNameEvent) then
+      FOnGetPropNameEvent(self,PropItem,Result);
+  end;
 end;
 
 function TzCustomObjInspector.GetExtraRect(Index: Integer): TRect;
@@ -2975,7 +3052,9 @@ begin
       DrawChevron(Canvas, sdRight, Point(X, cY), 3);
     end;
 
-    PropName := PItem.Name;
+    //PropName := PItem.Name;
+
+    PropName := GetCustomPropName(PItem);
 
     X := pOrdPos + 4;
     if FShowGridLines then
@@ -3307,6 +3386,12 @@ begin
   end;
 end;
 
+procedure TzCustomObjInspector.ExecuteDefaultDialog(Item: PPropItem);
+begin
+  if (FPropInspEdit <> nil) and FPropInspEdit.Visible and (FPropInspEdit.FPropItem = Item) then
+    FPropInspEdit.ShowModalDialog;
+end;
+
 procedure TzCustomObjInspector.SplitterPosChanged(var Pos: Integer);
 begin
   if (Pos < FGutterWidth + 30) then
@@ -3474,7 +3559,6 @@ begin
       ShowList;
     Exit;
   end;
-  ShowModalDialog;
 end;
 
 procedure TzPropInspEdit.CMCANCELMODE(var Message: TCMCancelMode);
@@ -3511,6 +3595,7 @@ begin
 
   FButton := TzPropInspButton.Create(Self);
   FButton.OnMouseDown := ButtonClick;
+  FButton.OnClick := DoBtnDialogClick;
 end;
 
 procedure TzPropInspEdit.DoSetValueFromList;
@@ -3540,13 +3625,25 @@ begin
   FInspector.DoSetValue(FPropItem, NewValue);
 end;
 
+procedure TzPropInspEdit.DoBtnDialogClick(Sender: TObject);
+begin
+  if not Assigned(FList) then
+  begin
+    if Assigned(FInspector.FOnDialogPropExecute) then
+      FInspector.FOnDialogPropExecute(Self,FPropItem,FPropitem^.Instance)
+    else ShowModalDialog;
+  end;
+end;
+
 procedure TzPropInspEdit.DoDblClick;
 var
   L: Integer;
 begin
   inherited;
   if DefaultValueManager.HasDialog(FPropItem) then
-    ShowModalDialog
+  begin
+    DoBtnDialogClick(nil)
+  end
   else if Assigned(FList) then
   begin
     if FList.Items.Count > 0 then
@@ -3770,6 +3867,7 @@ begin
       FButton.DropDown := False;
     Exit;
   end;
+
   ListClass := DefaultValueManager.GetListClass(PropInfo);
   FList := ListClass.Create(Self);
   FList.FPropItem := FPropItem;
@@ -3777,7 +3875,10 @@ begin
   FList.Visible := False;
   FList.Parent := Self.Parent;
   FList.OnMouseDown := ListBoxMouseDown;
-  if not(FList is TzCustomPopupListBox) then
+  //++ add by suiyunonghen
+  if Assigned(FInspector.FOnGetListItems) then
+    FInspector.FOnGetListItems(Self,FPropItem,FPropItem^.Instance,FList.Items)
+  else if not(FList is TzCustomPopupListBox) then
     DefaultValueManager.GetListItems(FPropItem, FList.Items);
   { Select the default item value }
   s := FPropItem.ValueName;
@@ -4312,8 +4413,19 @@ begin
 end;
 
 class function TzCustomValueManager.HasDialog(const PItem: PPropItem): Boolean;
+var
+  Handled: boolean;
 begin
   Result := False;
+  //Add CustomProp Check  by suiyunonghen
+  Handled := False;
+  if Assigned(TzCustomObjInspector(PItem.Insp).FOnCheckIfDialogProp) then
+  begin
+     TzCustomObjInspector(PItem.Insp).FOnCheckIfDialogProp(PItem.Insp,PItem,PItem^.Instance,Handled,Result);
+     if Handled then
+       Exit;
+  end;
+
   case GetValueType(PItem) of
     vtObj:
       begin
@@ -4331,8 +4443,18 @@ begin
 end;
 
 class function TzCustomValueManager.HasList(const PItem: PPropItem): Boolean;
+var
+  Handled: boolean;
 begin
   Result := False;
+  //Add CustomProp Check  by suiyunonghen
+  Handled := False;
+  if Assigned(TzCustomObjInspector(PItem.Insp).FOnCheckIfListProp) then
+  begin
+     TzCustomObjInspector(PItem.Insp).FOnCheckIfListProp(PItem.Insp,PItem,PItem^.Instance,Handled,Result);
+     if Handled then
+       Exit;
+  end;
 
   case GetValueType(PItem) of
     vtObj:
@@ -4679,6 +4801,14 @@ begin
     FObjectVisibility := Value
   else
     raise InspException.Create('Object Visibility must be mvPublic or mvPublished.');
+end;
+
+{ TPropAttribute }
+
+constructor TPropAttribute.Create(Propname, Desp: string);
+begin
+  FName := Propname;
+  FDescript := Desp;
 end;
 
 end.
