@@ -200,7 +200,6 @@ begin
   begin
     Finalize(PT(PRec)^);
     FreeMem(PRec, SizeOf(T));
-    ZeroMemory(PRec, SizeOf(T));
     PT(PRec) := nil;
   end;
 end;

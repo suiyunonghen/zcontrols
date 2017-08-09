@@ -31,7 +31,8 @@ package zControls_D;
 
 requires
   rtl,
-  vcl;
+  vcl,
+  ZControls_R;
 
 contains
   zControlsReg in '..\Source\zControlsReg.pas';

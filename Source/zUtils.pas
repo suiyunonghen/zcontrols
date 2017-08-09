@@ -59,15 +59,16 @@ var
   KeyboardState: TKeyboardState;
   P: PChar;
 begin
-  Win32Check(GetKeyboardState(KeyboardState));
-  GetMem(P, 4);
-  ZeroMemory(P, 4);
-  SetLength(Result, 2);
-  if ToAscii(vKey, MapVirtualKey(vKey, 0), KeyboardState, P, 0) > 0 then
-    Result := StrPas(P)
-  else
-    Result := '';
-  FreeMem(P, 4);
+  Result := '';
+  if GetKeyboardState(KeyboardState) then
+  begin
+    GetMem(P, 4);
+    ZeroMemory(P, 4);
+    SetLength(Result, 2);
+    if ToAscii(vKey, MapVirtualKey(vKey, 0), KeyboardState, P, 0) > 0 then
+      Result := StrPas(P);
+    FreeMem(P, 4);
+  end;
 end;
 
 procedure DrawHorzDotLine(Canvas: TCanvas; X, Y, Width: Integer);
