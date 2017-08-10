@@ -3687,6 +3687,11 @@ begin
   if FList.ItemIndex < 0 then
     Exit;
   ObjValue := (FList.Items.Objects[FList.ItemIndex]);
+  //++Add by suiyunonghen
+  //增加一个对于列表元素值的获取处理
+  if ObjValue = nil then
+    ObjValue := Pointer(FList.ItemIndex);
+
   if FPropItem.Prop.PropertyType.TypeKind = tkMethod then
   begin
     Method.Code := ObjValue;
@@ -3903,7 +3908,7 @@ end;
 procedure TzPropInspEdit.UpdateButton;
 begin
   FButton.Visible := False;
-  if (FInspector.FSelectedIndex < 0) or (FInspector.FSelectedIndex > FInspector.VisiblePropCount) then
+  if (FPropItem = nil) or (FInspector.FSelectedIndex < 0) or (FInspector.FSelectedIndex > FInspector.VisiblePropCount) then
     Exit;
   if not FPropItem^.Prop.IsWritable then
     Exit;
